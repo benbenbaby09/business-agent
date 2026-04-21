@@ -1,0 +1,20 @@
+# 核心依赖
+Flask
+pymongo
+PyJWT
+bcrypt
+requests
+
+# 云函数相关
+# tencentcloud-sdk-python==3.0.53  # 腾讯云SDK，根据实际云服务提供商调整
+
+# 文件处理
+python-multipart
+
+# 工具库
+python-dotenv
+python-dateutil
+
+# 测试
+pytest
+pytest-cov
