@@ -5,11 +5,19 @@
         <div class="card-header">
           <div class="header-left">
             <h2>Skill管理</h2>
+            <el-select v-model="selectedTenantId" @change="handleTenantChange" placeholder="选择商家" class="tenant-select">
+              <el-option
+                v-for="tenant in tenants"
+                :key="tenant._id"
+                :label="tenant.name"
+                :value="tenant._id"
+              />
+            </el-select>
             <el-tag v-if="currentTenant" type="success" class="tenant-tag">
-              当前租户: {{ currentTenant.name }}
+              当前商家: {{ currentTenant.name }}
             </el-tag>
             <el-tag v-else type="warning" class="tenant-tag">
-              未选择租户
+              未选择商家
             </el-tag>
           </div>
           <el-button type="primary" @click="handleCreateSkill" :disabled="!currentTenant">
@@ -151,6 +159,8 @@ const skills = ref([])
 const total = ref(0)
 const page = ref(1)
 const limit = ref(10)
+const tenants = ref([])
+const selectedTenantId = ref('')
 
 // 当前选中的租户
 const currentTenant = computed(() => tenantsStore.currentTenant)
@@ -274,7 +284,35 @@ const handleCurrentChange = (current) => {
   fetchSkills()
 }
 
-onMounted(() => {
+// 获取商家列表
+const fetchTenants = async () => {
+  try {
+    await tenantsStore.fetchTenants()
+    tenants.value = tenantsStore.tenants
+    if (currentTenant.value) {
+      selectedTenantId.value = currentTenant.value._id
+    }
+  } catch (error) {
+    console.error('获取商家列表失败:', error)
+  }
+}
+
+// 处理商家选择变化
+const handleTenantChange = async (tenantId) => {
+  try {
+    const tenant = tenants.value.find(t => t._id === tenantId)
+    if (tenant) {
+      await tenantsStore.setCurrentTenant(tenant)
+      page.value = 1
+      await fetchSkills()
+    }
+  } catch (error) {
+    console.error('切换商家失败:', error)
+  }
+}
+
+onMounted(async () => {
+  await fetchTenants()
   fetchSkills()
 })
 </script>
@@ -312,6 +350,15 @@ onMounted(() => {
 
 .tenant-alert {
   margin-bottom: 20px;
+}
+
+.tenant-select {
+  margin-left: 20px;
+  width: 200px;
+}
+
+.tenant-tag {
+  margin-left: 10px;
 }
 
 .filter-container {

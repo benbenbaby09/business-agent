@@ -15,9 +15,9 @@
             <el-icon><HomeFilled /></el-icon>
             <span>仪表盘</span>
           </el-menu-item>
-          <el-menu-item index="/tenants">
+          <el-menu-item index="/merchants">
             <el-icon><OfficeBuilding /></el-icon>
-            <span>租户管理</span>
+            <span>商家管理</span>
           </el-menu-item>
           <el-menu-item index="/mcp">
             <el-icon><Connection /></el-icon>

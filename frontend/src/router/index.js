@@ -6,7 +6,7 @@ import SkillDetail from '../views/skills/SkillDetail.vue'
 import SkillCreate from '../views/skills/SkillCreate.vue'
 import FileGenerator from '../views/FileGenerator.vue'
 import VersionManagement from '../views/VersionManagement.vue'
-import TenantList from '../views/tenants/TenantList.vue'
+import MerchantList from '../views/tenants/TenantList.vue'
 import McpManagement from '../views/mcp/McpManagement.vue'
 
 const routes = [
@@ -36,9 +36,9 @@ const routes = [
     component: SkillDetail
   },
   {
-    path: '/tenants',
-    name: 'TenantList',
-    component: TenantList
+    path: '/merchants',
+    name: 'MerchantList',
+    component: MerchantList
   },
   {
     path: '/mcp',

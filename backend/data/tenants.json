@@ -24,5 +24,44 @@
     "created_at": "2026-04-21 14:41:47.169285",
     "updated_at": "2026-04-21 14:51:40.231727",
     "_id": "69e78cab43231c50007dfd3e"
+  },
+  {
+    "user_id": "69e8705204c63ddc91c79e14",
+    "name": "test",
+    "description": "",
+    "type": "restaurant_entity",
+    "api_key": "mcp_3u2TWiHcclVukqWWC474yuF_azAt845GIGzwKAvJERk",
+    "status": "active",
+    "tier": "free",
+    "quota": {
+      "max_skills": 10,
+      "max_contexts": 5,
+      "max_tools": 10,
+      "max_resources": 50
+    },
+    "config": {},
+    "created_at": "2026-04-22 06:53:14.717549",
+    "updated_at": "2026-04-22 10:18:25.349751",
+    "_id": "69e8705a04c63ddc91c79e15",
+    "skill_url": "/api/skills/test/skill.zip"
+  },
+  {
+    "user_id": "69e8705204c63ddc91c79e14",
+    "name": "test2",
+    "description": "",
+    "type": "restaurant_entity",
+    "api_key": "mcp_BJE4wZd4TwG4iZHH07lI3CBPbi15ad4jKxPj2pGIUQk",
+    "status": "active",
+    "tier": "free",
+    "quota": {
+      "max_skills": 10,
+      "max_contexts": 5,
+      "max_tools": 10,
+      "max_resources": 50
+    },
+    "config": {},
+    "created_at": "2026-04-22 07:22:06.433509",
+    "updated_at": "2026-04-22 07:22:06.433512",
+    "_id": "69e8771e9e2b825440f5b888"
   }
 ]
