@@ -130,7 +130,9 @@ def mcp_list_tools(tenant_id='default'):
 @bp.route('/mcp/<tenant_id>/tools/call', methods=['POST'])
 def mcp_call_tool(tenant_id='default'):
     """调用工具"""
+    print(f"MCP call tool: tenant_id={tenant_id}")  # 调试日志
     data = request.get_json()
+    print(f"Request data: {data}")  # 调试日志
     toolcall = data.get('toolcall')
     
     if not toolcall or not toolcall.get('name'):
@@ -141,11 +143,13 @@ def mcp_call_tool(tenant_id='default'):
     
     # 获取租户信息
     tenant = tenant_manager.get_tenant(tenant_id)
+    print(f"MCP call tool: tenant={tenant}, tenant_id={tenant_id}")  # 调试日志
     if not tenant:
         return jsonify({'error': '租户不存在'}), 404
     
     # 从租户配置中获取真实数据
     config = getattr(tenant, 'config', {})
+    print(f"Tenant config: {config}")  # 调试日志
     
     # 根据工具名称返回相应的数据
     if tool_name == "get_restaurant_info":

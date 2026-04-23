@@ -1,0 +1,27 @@
+[
+  {
+    "user_id": "69e77e926718ea2d929351c6",
+    "tenant_id": "69e78cab43231c50007dfd3e",
+    "name": "get_restaurant_info",
+    "title": "餐厅基本信息",
+    "type": "restaurant_entity",
+    "description": "获取test基本信息，包括门店地址和营业时间。当用户询问餐厅在哪、几点营业等基本问题时使用。仅返回硬编码的静态数据。",
+    "config": {
+      "restaurantName": "test",
+      "restaurantIntro": "",
+      "businessHours": "9:00-22:00",
+      "locations": [
+        {
+          "name": "test",
+          "address": "test"
+        }
+      ],
+      "queueDescription": "",
+      "queueMethods": [],
+      "queueStores": []
+    },
+    "created_at": "2026-04-21 15:48:23.069376",
+    "updated_at": "2026-04-21 15:48:23.069376",
+    "_id": "69e79c47276390d3199de8ea"
+  }
+]

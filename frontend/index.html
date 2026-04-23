@@ -5,9 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>商家智能体平台</title>
+    <script>
+      // 检查登录状态并跳转到相应页面
+      const token = localStorage.getItem('token')
+      if (token) {
+        window.location.href = '/pages/dashboard.html'
+      } else {
+        window.location.href = '/pages/login.html'
+      }
+    </script>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif;">
+      <p>正在跳转...</p>
+    </div>
   </body>
 </html>

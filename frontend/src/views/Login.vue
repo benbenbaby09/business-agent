@@ -16,9 +16,9 @@
         <el-form-item v-if="!isLogin" label="用户名" prop="username">
           <el-input v-model="form.username" placeholder="请输入用户名" />
         </el-form-item>
-        
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" type="email" placeholder="请输入邮箱" />
+
+        <el-form-item :label="isLogin ? '用户名' : '邮箱'" :prop="isLogin ? 'email' : 'email'">
+          <el-input v-model="form.email" :type="isLogin ? 'text' : 'email'" :placeholder="isLogin ? '请输入用户名' : '请输入邮箱'" />
         </el-form-item>
         
         <el-form-item label="密码" prop="password">
@@ -77,13 +77,21 @@ const rules = reactive({
   email: [
     {
       required: true,
-      message: '请输入邮箱',
+      message: (value) => isLogin.value ? '请输入用户名' : '请输入邮箱',
       trigger: 'blur'
     },
     {
       type: 'email',
       message: '请输入正确的邮箱格式',
-      trigger: 'blur'
+      trigger: 'blur',
+      // 只在注册时验证邮箱格式
+      validator: (rule, value, callback) => {
+        if (!isLogin.value && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          callback(new Error('请输入正确的邮箱格式'))
+        } else {
+          callback()
+        }
+      }
     }
   ],
   password: [
@@ -115,12 +123,14 @@ const handleSubmit = async () => {
       
       try {
         if (isLogin.value) {
+          // 登录时使用邮箱作为用户名
           await authStore.login(form.email, form.password)
         } else {
           await authStore.register(form.username, form.email, form.password)
         }
         
-        router.push('/dashboard')
+        // 多页应用跳转
+        window.location.href = '/pages/dashboard.html'
       } catch (err) {
         error.value = authStore.error
       } finally {

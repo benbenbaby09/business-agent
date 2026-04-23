@@ -14,13 +14,13 @@ export const useAuthStore = defineStore('auth', {
   },
   
   actions: {
-    async login(email, password) {
+    async login(username, password) {
       this.loading = true
       this.error = null
       
       try {
         const response = await axios.post('/auth/login', {
-          email,
+          username,
           password
         })
         

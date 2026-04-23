@@ -474,6 +474,7 @@ import { useRouter } from 'vue-router'
 import { useTenantsStore } from '../../stores/tenants'
 import { Plus, DocumentCopy, Link } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { BACKEND_URL } from '@/config'
 
 const router = useRouter()
 const tenantsStore = useTenantsStore()
@@ -710,14 +711,8 @@ const handleSubmit = async () => {
           await tenantsStore.updateTenant(currentTenantId.value, form)
           ElMessage.success('更新成功')
         } else {
-          const result = await tenantsStore.createTenant(form)
+          await tenantsStore.createTenant(form)
           ElMessage.success('创建成功')
-          // 显示API密钥
-          apiKeyData.value = {
-            api_key: result.api_key,
-            api_secret: result.api_secret
-          }
-          apiKeyDialogVisible.value = true
         }
         dialogVisible.value = false
         fetchTenants()
@@ -884,7 +879,8 @@ const handlePublishTenant = async (tenant) => {
   
   try {
     // 调用后端预览接口，获取真实的预览内容
-    const response = await fetch(`/api/tenants/${tenant.id}/preview`, {
+    // 使用完整的后端 URL，避免请求发送到前端域名
+    const response = await fetch(`${BACKEND_URL}/api/tenants/${tenant.id}/preview`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1035,7 +1031,8 @@ const handleNextStep = async () => {
     
     try {
       // 调用后端发布接口
-      const response = await fetch(`/api/tenants/${currentPublishTenant.value.id}/publish`, {
+      // 使用完整的后端 URL，避免请求发送到前端域名
+      const response = await fetch(`${BACKEND_URL}/api/tenants/${currentPublishTenant.value.id}/publish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1047,9 +1044,8 @@ const handleNextStep = async () => {
       const data = await response.json()
       if (response.ok) {
         // 使用后端服务器地址构建完整的Skill文件URL
-        const backendUrl = 'http://localhost:9000'
-        const fullUrl = data.skill_url.startsWith('/') 
-          ? backendUrl + data.skill_url 
+        const fullUrl = data.skill_url.startsWith('/')
+          ? BACKEND_URL + data.skill_url
           : data.skill_url
         publishResultForm.skillUrl = fullUrl
         publishResultForm.saveStatus = 'success'
@@ -1068,9 +1064,8 @@ const handleNextStep = async () => {
 const copySkillUrl = () => {
   if (publishResultForm.skillUrl) {
     // 使用后端服务器地址构建完整的Skill文件URL
-    const backendUrl = 'http://localhost:9000'
-    const fullUrl = publishResultForm.skillUrl.startsWith('/') 
-      ? backendUrl + publishResultForm.skillUrl 
+    const fullUrl = publishResultForm.skillUrl.startsWith('/')
+      ? BACKEND_URL + publishResultForm.skillUrl
       : publishResultForm.skillUrl
     navigator.clipboard.writeText(fullUrl)
       .then(() => {
@@ -1086,9 +1081,8 @@ const copySkillUrl = () => {
 const openSkillUrl = () => {
   if (publishResultForm.skillUrl) {
     // 使用后端服务器地址打开Skill文件
-    const backendUrl = 'http://localhost:9000'
-    const fullUrl = publishResultForm.skillUrl.startsWith('/') 
-      ? backendUrl + publishResultForm.skillUrl 
+    const fullUrl = publishResultForm.skillUrl.startsWith('/')
+      ? BACKEND_URL + publishResultForm.skillUrl
       : publishResultForm.skillUrl
     window.open(fullUrl, '_blank')
   }
@@ -1097,8 +1091,7 @@ const openSkillUrl = () => {
 const downloadCurrentVersion = () => {
   if (currentPublishTenant.value) {
     // 构建当前版本的下载URL
-    const backendUrl = 'http://localhost:9000'
-    const downloadUrl = `${backendUrl}/storage/skills/${currentPublishTenant.value.id}/skill.zip`
+    const downloadUrl = `${BACKEND_URL}/storage/skills/${currentPublishTenant.value.id}/skill.zip`
     
     // 触发下载
     const link = document.createElement('a')

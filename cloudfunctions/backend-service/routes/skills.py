@@ -27,11 +27,39 @@ def save_skills(skills):
     with open(SKILLS_FILE, 'w', encoding='utf-8') as f:
         json.dump(skills, f, ensure_ascii=False, indent=2)
 
-@bp.route('/list', methods=['GET'])
+@bp.route('/', methods=['GET'])
 def list_skills():
-    """获取技能列表"""
+    """获取技能列表（支持分页和筛选）"""
     skills = load_skills()
-    return jsonify(skills)
+
+    # 获取查询参数
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    status = request.args.get('status', '')
+    skill_type = request.args.get('type', '')
+    tenant_id = request.args.get('tenant_id', '')
+
+    # 筛选
+    filtered_skills = skills
+    if status:
+        filtered_skills = [s for s in filtered_skills if s.get('status') == status]
+    if skill_type:
+        filtered_skills = [s for s in filtered_skills if s.get('type') == skill_type]
+    if tenant_id:
+        filtered_skills = [s for s in filtered_skills if s.get('tenant_id') == tenant_id]
+
+    # 分页
+    total = len(filtered_skills)
+    start = (page - 1) * limit
+    end = start + limit
+    paginated_skills = filtered_skills[start:end]
+
+    return jsonify({
+        'skills': paginated_skills,
+        'total': total,
+        'page': page,
+        'limit': limit
+    })
 
 @bp.route('/create', methods=['POST'])
 def create_skill():

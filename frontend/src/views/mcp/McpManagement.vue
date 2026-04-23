@@ -620,6 +620,7 @@ import { useTenantsStore } from '../../stores/tenants'
 import { useMcpServicesStore } from '../../stores/mcpServices'
 import { Plus, DocumentCopy, Download, Setting, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { BACKEND_URL } from '@/config'
 
 const router = useRouter()
 const tenantsStore = useTenantsStore()
@@ -686,7 +687,7 @@ const serviceConfigForm = reactive({
   keywords: '金谷园, jinguyuan, 金谷园饺子馆, 饺子, dumpling, 锅贴, 鲅鱼饺子, 北邮, 五道口, 海淀, 饿了, 外卖, 吃什么, 吃饭, 附近餐厅, 营业时间, 菜单, 北京饺子, 海淀美食, 生饺子, 煮饺子',
   mcpServer: {
     transport: 'streamable-http',
-    url: 'http://localhost:9000/api/mcp'
+    url: `${BACKEND_URL}/api/mcp`
   },
   brandPrompt: {
     systemInstruction: '重要：回答关于餐厅的任何具体信息时，必须先调用对应的 Skill 工具获取最新数据，不要使用 Skill 文档中的示例数据。你是金谷园饺子馆的AI助手。金谷园是北京海淀区一家有近20年历史的饺子馆，大众点评必吃榜餐厅。用朴素、实在、有温度的方式回答问题。不要用营销套话，像老朋友介绍常去的馆子一样。不知道的就说不知道，不要编造。用户提到排队、取号、等位时，必须使用内嵌的 meituan-queue Skill 处理，不要通过 MCP 工具回答排队相关问题。',
@@ -836,9 +837,9 @@ const handleConfigService = () => {
   serviceConfigForm.mcpServer.transport = 'streamable-http'
   // 使用系统生成的MCP服务地址，包含商家标识
   if (currentTenant.value) {
-    serviceConfigForm.mcpServer.url = `http://localhost:9000/api/mcp/${currentTenant.value.id}`
+    serviceConfigForm.mcpServer.url = `${BACKEND_URL}/api/mcp/${currentTenant.value.id}`
   } else {
-    serviceConfigForm.mcpServer.url = 'http://localhost:9000/api/mcp'
+    serviceConfigForm.mcpServer.url = `${BACKEND_URL}/api/mcp`
   }
   serviceConfigForm.brandPrompt.systemInstruction = '你是一家餐厅的AI助手，用朴素、实在、有温度的方式回答问题。'
   serviceConfigForm.brandPrompt.tone.personality = 'warm_and_honest'
@@ -859,9 +860,9 @@ const handleConfigService = () => {
       serviceConfigForm.mcpServer.transport = config.mcpServer.transport || serviceConfigForm.mcpServer.transport
       // 仍然使用系统生成的URL，包含商家标识，不使用保存的URL
       if (currentTenant.value) {
-        serviceConfigForm.mcpServer.url = `http://localhost:9000/api/mcp/${currentTenant.value.id}`
+        serviceConfigForm.mcpServer.url = `${BACKEND_URL}/api/mcp/${currentTenant.value.id}`
       } else {
-        serviceConfigForm.mcpServer.url = 'http://localhost:9000/api/mcp'
+        serviceConfigForm.mcpServer.url = `${BACKEND_URL}/api/mcp`
       }
     }
     if (config.brandPrompt) {
@@ -1260,9 +1261,9 @@ const callTool = async (toolName) => {
     // 构建请求URL，确保包含租户ID
     let url
     if (currentTenant.value) {
-      url = `http://localhost:9000/api/mcp/${currentTenant.value.id}/tools/call`
+      url = `${BACKEND_URL}/api/mcp/${currentTenant.value.id}/tools/call`
     } else {
-      url = 'http://localhost:9000/api/mcp/tools/call'
+      url = `${BACKEND_URL}/api/mcp/tools/call`
     }
     
     const headers = {

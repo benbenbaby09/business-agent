@@ -1,8 +1,10 @@
 import axios from 'axios'
+import { API_BASE_URL } from '@/config'
 
 // 创建axios实例
+// 优先使用 API_BASE_URL (来自 config.js)，其次使用环境变量
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:9000/api',
+  baseURL: API_BASE_URL || import.meta.env.VITE_API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

@@ -103,14 +103,23 @@ class TenantManager:
         if not tenant:
             return None
         
-        if 'name' in updates:
-            tenant.name = updates['name']
-        if 'tier' in updates:
-            tenant.tier = TenantTier(updates['tier'])
-        if 'config' in updates:
-            tenant.config = updates['config']
-        if 'status' in updates:
-            tenant.status = updates['status']
+        # 如果 updates 包含完整的租户数据（从 routes/tenants.py 传来）
+        # 则更新所有字段
+        if 'id' in updates and 'name' in updates and 'tier' in updates:
+            tenant.name = updates.get('name', tenant.name)
+            tenant.tier = TenantTier(updates['tier']) if isinstance(updates['tier'], str) else updates['tier']
+            tenant.config = updates.get('config', tenant.config)
+            tenant.status = updates.get('status', tenant.status)
+        else:
+            # 部分更新（兼容旧逻辑）
+            if 'name' in updates:
+                tenant.name = updates['name']
+            if 'tier' in updates:
+                tenant.tier = TenantTier(updates['tier'])
+            if 'config' in updates:
+                tenant.config = updates['config']
+            if 'status' in updates:
+                tenant.status = updates['status']
         
         self._save_tenants()
         return tenant
