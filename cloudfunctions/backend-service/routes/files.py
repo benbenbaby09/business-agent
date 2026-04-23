@@ -7,7 +7,7 @@ from datetime import datetime
 bp = Blueprint('files', __name__)
 
 # 文件存储目录
-STORAGE_DIR = 'storage/skills'
+STORAGE_DIR = '/data/skills'
 
 # 确保存储目录存在
 os.makedirs(STORAGE_DIR, exist_ok=True)

@@ -7,7 +7,7 @@ from datetime import datetime
 bp = Blueprint('publish', __name__)
 
 # 技能数据文件路径
-SKILLS_FILE = 'data/skills.json'
+SKILLS_FILE = '/data/skills.json'
 
 # 加载技能数据
 def load_skills():
@@ -18,7 +18,7 @@ def load_skills():
 
 # 保存技能数据
 def save_skills(skills):
-    os.makedirs('data', exist_ok=True)
+    os.makedirs('/data', exist_ok=True)
     with open(SKILLS_FILE, 'w', encoding='utf-8') as f:
         json.dump(skills, f, ensure_ascii=False, indent=2)
 

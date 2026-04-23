@@ -34,28 +34,25 @@ class Tenant:
         }
 
 class TenantManager:
-    def __init__(self, data_file='data/tenants.json'):
+    def __init__(self, data_file='/data/tenants.json'):
         self.data_file = data_file
         self.tenants = []
-        self._load_tenants()
+        self.load_tenants()
 
-    def _load_tenants(self):
+    def load_tenants(self):
         """加载租户数据"""
-        os.makedirs('data', exist_ok=True)
+        os.makedirs('/data', exist_ok=True)
         if not os.path.exists(self.data_file):
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump([], f, ensure_ascii=False, indent=2)
-        
         with open(self.data_file, 'r', encoding='utf-8') as f:
             tenants_data = json.load(f)
             for data in tenants_data:
-                # 从 mcp_service 中获取 API 密钥
                 api_key = data.get('api_key')
                 api_secret = data.get('api_secret')
                 if not api_key and 'mcp_service' in data:
                     api_key = data['mcp_service'].get('api_key')
                     api_secret = data['mcp_service'].get('api_secret')
-                
                 tenant = Tenant(
                     id=data['id'],
                     name=data['name'],

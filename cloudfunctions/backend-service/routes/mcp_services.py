@@ -5,11 +5,11 @@ import json
 # 创建蓝图
 bp = Blueprint('mcp_services', __name__)
 
-# 服务数据文件路径
-SERVICES_FILE = 'data/mcp_services.json'
+# MCP服务数据文件路径
+SERVICES_FILE = '/data/mcp_services.json'
 
 # 确保数据目录存在
-os.makedirs('data', exist_ok=True)
+os.makedirs('/data', exist_ok=True)
 
 # 初始化服务数据
 if not os.path.exists(SERVICES_FILE):

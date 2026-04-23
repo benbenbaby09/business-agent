@@ -7,10 +7,10 @@ from datetime import datetime
 bp = Blueprint('skills', __name__)
 
 # 技能数据文件路径
-SKILLS_FILE = 'data/skills.json'
+SKILLS_FILE = '/data/skills.json'
 
 # 确保数据目录存在
-os.makedirs('data', exist_ok=True)
+os.makedirs('/data', exist_ok=True)
 
 # 初始化技能数据
 if not os.path.exists(SKILLS_FILE):

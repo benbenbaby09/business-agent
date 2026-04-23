@@ -6,6 +6,13 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
+# 确保所有必要的目录存在
+import os
+# 创建主数据目录
+os.makedirs('/data', exist_ok=True)
+# 创建技能文件存储目录
+os.makedirs('/data/skills', exist_ok=True)
+
 # 初始化Flask应用
 app = Flask(__name__)
 # 启用CORS，允许所有来源
@@ -31,7 +38,7 @@ app.register_blueprint(mcp.bp, url_prefix='/api')
 app.register_blueprint(mcp_services.bp, url_prefix='/api')
 
 # 配置静态文件服务
-app.static_folder = 'storage'
+app.static_folder = '/data'
 app.static_url_path = '/storage'
 
 # 静态文件服务路由
@@ -46,6 +53,8 @@ def serve_static(filename):
     else:
         from flask import abort
         abort(404)
+
+
 
 # 导入并初始化MCP服务
 from mcp.server import mcp_server

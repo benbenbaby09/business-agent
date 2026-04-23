@@ -5,7 +5,7 @@ import zipfile
 from datetime import datetime
 
 # 工具模板文件路径
-TOOL_TEMPLATES_FILE = 'data/tool_templates.json'
+TOOL_TEMPLATES_FILE = '/data/tool_templates.json'
 
 # 确保工具模板文件存在
 if not os.path.exists(TOOL_TEMPLATES_FILE):
@@ -16,10 +16,10 @@ if not os.path.exists(TOOL_TEMPLATES_FILE):
 bp = Blueprint('tenants', __name__)
 
 # 租户数据文件路径
-TENANTS_FILE = 'data/tenants.json'
+TENANTS_FILE = '/data/tenants.json'
 
 # 确保数据目录存在
-os.makedirs('data', exist_ok=True)
+os.makedirs('/data', exist_ok=True)
 
 # 初始化租户数据
 if not os.path.exists(TENANTS_FILE):
@@ -413,7 +413,7 @@ def publish_tenant(tenant_id):
     }
     
     # 保存技能文件
-    skill_dir = f'storage/skills/{tenant_id}'
+    skill_dir = f'/data/skills/{tenant_id}'
     os.makedirs(skill_dir, exist_ok=True)
     
     # 保存skill.md
