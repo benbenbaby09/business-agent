@@ -1,0 +1,7 @@
+{
+  "name": "backend-service",
+  "version": "1.0.0",
+  "description": "Backend service cloud function",
+  "main": "index.js",
+  "dependencies": {}
+}

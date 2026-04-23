@@ -114,7 +114,7 @@ export const useMcpServicesStore = defineStore('mcpServices', {
           }
         })
 
-        const index = this.tools.findIndex(t => t._id === toolId)
+        const index = this.tools.findIndex(t => t.id === toolId)
         if (index !== -1) {
           this.tools[index] = response.data
         }
@@ -139,7 +139,7 @@ export const useMcpServicesStore = defineStore('mcpServices', {
           }
         })
 
-        this.tools = this.tools.filter(t => t._id !== toolId)
+        this.tools = this.tools.filter(t => t.id !== toolId)
         return true
       } catch (error) {
         this.error = error.response?.data?.error || '删除工具失败'

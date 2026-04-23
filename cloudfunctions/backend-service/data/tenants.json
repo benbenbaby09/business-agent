@@ -1,0 +1,163 @@
+[
+  {
+    "id": "tenant_2",
+    "name": "阳普餐厅",
+    "type": "restaurant_entity",
+    "tier": "free",
+    "config": {
+      "address": "广州市海淀区杏坛路文教产业园K座南2层",
+      "businessHours": "10:00-22:00",
+      "deliveryDescription": "金谷园饺子馆提供外卖配送服务，让您在家也能享受美味的饺子。",
+      "deliveryPlatform": "美团, 饿了么",
+      "deliveryRange": "周边3公里内，配送时间30-45分钟",
+      "deliverySearchKeyword": "金谷园饺子馆",
+      "deliveryStores": [
+        "金谷园饺子馆（北邮店）",
+        "金谷园饺子馆（五道口店）"
+      ],
+      "latestNewsItems": [
+        {
+          "content": "金谷园饺子馆推出新品鲅鱼饺子，欢迎品尝！",
+          "publishedAt": "2026/4/23 12:08:18"
+        }
+      ],
+      "latestNewsSource": "static",
+      "phone": "13800138000",
+      "queueDescription": "金谷园饺子馆提供在线排队取号服务，让您无需到店等待。",
+      "queueMethods": [
+        "美团排队",
+        "现场取号"
+      ],
+      "queueStores": [
+        "金谷园饺子馆（北邮店）",
+        "金谷园饺子馆（五道口店）"
+      ],
+      "rawDumplingCookingSteps": [
+        "1. 锅中加足量水，大火烧开，水一定要完全沸腾再下饺子。",
+        "2. 下饺子后用勺子背面轻轻推散，防止粘锅底、粘在一起。",
+        "3. 再次沸腾后，转中火，盖上锅盖煮。",
+        "4. 水再次大开时，加小半碗凉水，这叫「点水」。",
+        "5. 重复点水2～3次：每次水沸就加一次凉水。",
+        "6. 等饺子全部鼓起来、漂浮在水面、外皮透亮饱满，就熟了。"
+      ],
+      "rawDumplingDescription": "金谷园饺子馆提供生饺子打包服务，让您在家也能享受现煮的饺子。",
+      "rawDumplingOrderMethod": "非特殊节气，直接到店下单即可，外带现包，5-10分钟包好可取",
+      "rawDumplingStorageTips": "1小时内煮熟或放冰箱冷冻均可",
+      "rawDumplingTips": [
+        "想饺子皮更筋道不破：水里加一小勺盐。",
+        "速冻饺子：不用解冻，直接冷水/温水下锅，小火慢煮，同样点水2～3次。",
+        "煮好直接捞，别在锅里泡太久，容易破皮。"
+      ],
+      "shopName": "广州阳普饺子馆",
+      "specialDishes": "鲅鱼饺子, 猪肉白菜饺子, 韭菜鸡蛋饺子, 锅贴",
+      "wifiFindMethod": "开启Wi-Fi往底部滑",
+      "wifiName": "苹果密码8个8",
+      "wifiPassword": "88888888"
+    },
+    "status": "active",
+    "created_at": "2026-04-23T12:06:24.715191",
+    "updated_at": "2026-04-23T16:21:41.444289",
+    "mcp_service": {
+      "id": "mcp_service_tenant_2",
+      "tenant_id": "tenant_2",
+      "name": "test MCP Service",
+      "status": "active",
+      "api_key": "api_key_tenant_2",
+      "api_secret": "api_secret_tenant_2",
+      "created_at": "2026-04-23T13:33:10.367028",
+      "updated_at": "2026-04-23T13:33:10.376057"
+    },
+    "serviceConfig": {
+      "displayName": "test",
+      "version": "0.1.0",
+      "author": "test",
+      "license": "MIT",
+      "repository": "test",
+      "category": "信息查询",
+      "keywords": "test",
+      "mcpServer": {
+        "transport": "streamable-http",
+        "url": "http://localhost:9000/api/mcp/tenant_2"
+      },
+      "brandPrompt": {
+        "systemInstruction": "你是一家餐厅的AI助手，用朴素、实在、有温度的方式回答问题。",
+        "tone": {
+          "personality": "warm_and_honest",
+          "avoid": [
+            "hype",
+            "clickbait",
+            "marketing_jargon"
+          ]
+        },
+        "brandKeywords": [
+          "test"
+        ]
+      },
+      "skillUrl": "/storage/skills/tenant_2/skill.zip"
+    },
+    "tools": [
+      {
+        "id": "tool_1",
+        "tenant_id": "tenant_2",
+        "name": "get_restaurant_info",
+        "title": "餐厅基本信息",
+        "type": "restaurant_entity",
+        "description": "获取test餐厅基本信息信息",
+        "created_at": "2026-04-23T14:53:04.487692",
+        "updated_at": "2026-04-23T14:53:04.487701"
+      },
+      {
+        "id": "tool_2",
+        "tenant_id": "tenant_2",
+        "name": "get_queue_info",
+        "title": "堂食排队取号",
+        "type": "queue_info",
+        "description": "获取test堂食排队取号信息",
+        "created_at": "2026-04-23T14:53:04.487707",
+        "updated_at": "2026-04-23T14:53:04.487709"
+      },
+      {
+        "id": "tool_3",
+        "tenant_id": "tenant_2",
+        "name": "get_delivery_info",
+        "title": "外卖配送信息",
+        "type": "delivery_info",
+        "description": "获取test外卖配送信息信息",
+        "created_at": "2026-04-23T14:53:04.487712",
+        "updated_at": "2026-04-23T14:53:04.487714"
+      },
+      {
+        "id": "tool_4",
+        "tenant_id": "tenant_2",
+        "name": "get_raw_dumpling_info",
+        "title": "生饺子打包与教程",
+        "type": "raw_dumpling_info",
+        "description": "获取test生饺子打包与教程信息",
+        "created_at": "2026-04-23T14:53:04.487716",
+        "updated_at": "2026-04-23T14:53:04.487718"
+      },
+      {
+        "id": "tool_5",
+        "tenant_id": "tenant_2",
+        "name": "get_wifi_info",
+        "title": "店内Wi-Fi",
+        "type": "wifi_info",
+        "description": "获取test店内Wi-Fi信息",
+        "created_at": "2026-04-23T14:53:04.487721",
+        "updated_at": "2026-04-23T14:53:04.487723"
+      },
+      {
+        "id": "tool_6",
+        "tenant_id": "tenant_2",
+        "name": "get_latest_news",
+        "title": "最新消息",
+        "type": "latest_news",
+        "description": "获取test最新消息信息",
+        "created_at": "2026-04-23T14:53:04.487725",
+        "updated_at": "2026-04-23T14:53:04.487727"
+      }
+    ],
+    "description": "",
+    "englishName": "sunpro"
+  }
+]

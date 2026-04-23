@@ -8,9 +8,9 @@
             <el-select v-model="selectedTenantId" @change="handleTenantChange" placeholder="选择商家" class="tenant-select">
               <el-option
                 v-for="tenant in tenants"
-                :key="tenant._id"
+                :key="tenant.id"
                 :label="tenant.name"
-                :value="tenant._id"
+                :value="tenant.id"
               />
             </el-select>
             <el-tag v-if="currentTenant" type="success" class="tenant-tag">
@@ -78,10 +78,6 @@
           <div class="tools-section">
             <div class="section-header">
               <h3>接口配置</h3>
-              <el-button type="primary" @click="handleAutoGenerateTools">
-                <el-icon><Refresh /></el-icon>
-                自动生成接口
-              </el-button>
             </div>
 
             <el-table :data="tools" style="width: 100%">
@@ -518,7 +514,29 @@
             </el-select>
           </el-form-item>
           <el-form-item label="服务器URL" prop="mcpServer.url">
-            <el-input v-model="serviceConfigForm.mcpServer.url" placeholder="请输入MCP服务器URL" />
+            <el-input v-model="serviceConfigForm.mcpServer.url" placeholder="请输入MCP服务器URL" :disabled="true" />
+            <div style="margin-top: 10px; display: flex; gap: 10px;">
+              <el-button type="primary" size="small" @click="testMcpServer">测试连接 (initialize)</el-button>
+              <el-button type="success" size="small" @click="testToolsList">测试工具列表 (tools/list)</el-button>
+              <el-button type="info" size="small" @click="testAllTools">测试所有接口</el-button>
+            </div>
+            <!-- 滚动消息区域 -->
+            <div v-if="showLogMessages" class="log-messages">
+              <div v-for="(message, index) in logMessages" :key="index" :class="['log-message', message.type]">
+                <div class="log-header">
+                  <div class="log-time">{{ message.time }}</div>
+                  <div :class="['log-type', message.type]">{{ message.type }}</div>
+                </div>
+                <div class="log-content">{{ message.content }}</div>
+              </div>
+              <div v-if="logMessages.length === 0" class="log-message info">
+                <div class="log-header">
+                  <div class="log-time">{{ new Date().toTimeString().split(' ')[0] }}</div>
+                  <div class="log-type info">info</div>
+                </div>
+                <div class="log-content">暂无日志信息</div>
+              </div>
+            </div>
           </el-form-item>
         </div>
 
@@ -668,7 +686,7 @@ const serviceConfigForm = reactive({
   keywords: '金谷园, jinguyuan, 金谷园饺子馆, 饺子, dumpling, 锅贴, 鲅鱼饺子, 北邮, 五道口, 海淀, 饿了, 外卖, 吃什么, 吃饭, 附近餐厅, 营业时间, 菜单, 北京饺子, 海淀美食, 生饺子, 煮饺子',
   mcpServer: {
     transport: 'streamable-http',
-    url: 'https://mcp.jinguyuan.cloud'
+    url: 'http://localhost:9000/api/mcp'
   },
   brandPrompt: {
     systemInstruction: '重要：回答关于餐厅的任何具体信息时，必须先调用对应的 Skill 工具获取最新数据，不要使用 Skill 文档中的示例数据。你是金谷园饺子馆的AI助手。金谷园是北京海淀区一家有近20年历史的饺子馆，大众点评必吃榜餐厅。用朴素、实在、有温度的方式回答问题。不要用营销套话，像老朋友介绍常去的馆子一样。不知道的就说不知道，不要编造。用户提到排队、取号、等位时，必须使用内嵌的 meituan-queue Skill 处理，不要通过 MCP 工具回答排队相关问题。',
@@ -678,6 +696,15 @@ const serviceConfigForm = reactive({
     },
     brandKeywords: '皮薄馅大, 现包现煮, 北邮校外食堂, 松弛实在, 必吃榜'
   }
+})
+
+// 日志消息
+const showLogMessages = ref(false)
+const logMessages = ref([])
+
+// 组件挂载时加载租户列表
+onMounted(async () => {
+  await loadTenants()
 })
 
 const toolRules = {
@@ -757,7 +784,9 @@ const formatDate = (dateString) => {
 const loadMcpService = async () => {
   if (!currentTenant.value) return
   try {
-    await mcpServicesStore.getMcpService(currentTenant.value._id)
+    await mcpServicesStore.getMcpService(currentTenant.value.id)
+    // 加载工具列表
+    await loadTools()
   } catch (error) {
     // 404表示服务不存在，这是正常的
     console.log('MCP service not found')
@@ -768,7 +797,7 @@ const loadMcpService = async () => {
 const loadTools = async () => {
   if (!currentTenant.value || !mcpService.value) return
   try {
-    await mcpServicesStore.fetchTools(currentTenant.value._id)
+    await mcpServicesStore.fetchTools(currentTenant.value.id)
   } catch (error) {
     console.error('加载工具列表失败:', error)
   }
@@ -778,8 +807,10 @@ const loadTools = async () => {
 const handleCreateService = async () => {
   creating.value = true
   try {
-    await mcpServicesStore.createMcpService(currentTenant.value._id)
+    await mcpServicesStore.createMcpService(currentTenant.value.id)
     ElMessage.success('MCP服务创建成功')
+    // 加载工具列表
+    await loadTools()
   } catch (error) {
     ElMessage.error('创建失败: ' + (error.response?.data?.error || '未知错误'))
   } finally {
@@ -787,82 +818,7 @@ const handleCreateService = async () => {
   }
 }
 
-const handleAutoGenerateTools = async () => {
-  if (!currentTenant.value) return
-  
-  try {
-    // 根据商家配置信息自动生成接口
-    const tenantConfig = currentTenant.value.config || {}
-    
-    // 定义要生成的接口类型
-    const toolTypes = [
-      { type: 'restaurant_entity', name: 'get_restaurant_info', title: '餐厅基本信息' },
-      { type: 'queue_info', name: 'get_queue_info', title: '堂食排队取号' },
-      { type: 'delivery_info', name: 'get_delivery_info', title: '外卖配送信息' },
-      { type: 'raw_dumpling_info', name: 'get_raw_dumpling_info', title: '生饺子打包与教程' },
-      { type: 'wifi_info', name: 'get_wifi_info', title: '店内Wi-Fi' },
-      { type: 'latest_news', name: 'get_latest_news', title: '最新消息' }
-    ]
-    
-    // 清除现有接口
-    for (const tool of tools.value) {
-      await mcpServicesStore.deleteTool(currentTenant.value._id, tool._id)
-    }
-    
-    // 生成新接口
-    for (const toolType of toolTypes) {
-      const toolData = {
-        name: toolType.name,
-        title: toolType.title,
-        type: toolType.type,
-        description: `获取${tenantConfig.shopName || '餐厅'}${getTypeName(toolType.type)}信息。当用户询问相关问题时使用。`,
-        config: {
-          // 餐厅基本信息配置
-          restaurantName: tenantConfig.shopName || '',
-          restaurantIntro: tenantConfig.specialDishes || '',
-          businessHours: tenantConfig.businessHours || '',
-          locations: tenantConfig.address ? [{ name: tenantConfig.shopName || '总店', address: tenantConfig.address }] : [],
-          
-          // 堂食排队取号配置
-          queueDescription: tenantConfig.queueDescription || '',
-          queueMethods: tenantConfig.queueMethods || [],
-          queueStores: tenantConfig.queueStores || [],
-          
-          // 外卖配送信息配置
-          deliveryDescription: tenantConfig.deliveryDescription || '',
-          deliveryPlatform: tenantConfig.deliveryPlatform || '',
-          deliverySearchKeyword: tenantConfig.deliverySearchKeyword || '',
-          deliveryStores: tenantConfig.deliveryStores || [],
-          deliveryRange: tenantConfig.deliveryRange || '',
-          
-          // 生饺子打包与教程配置
-          rawDumplingDescription: tenantConfig.rawDumplingDescription || '',
-          rawDumplingOrderMethod: tenantConfig.rawDumplingOrderMethod || '',
-          rawDumplingStorageTips: tenantConfig.rawDumplingStorageTips || '',
-          rawDumplingCookingSteps: tenantConfig.rawDumplingCookingSteps || [],
-          rawDumplingTips: tenantConfig.rawDumplingTips || [],
-          
-          // 店内Wi-Fi配置
-          wifiName: tenantConfig.wifiName || '',
-          wifiFindMethod: tenantConfig.wifiFindMethod || '',
-          wifiPassword: tenantConfig.wifiPassword || '',
-          
-          // 最新消息配置
-          latestNewsSource: 'static',
-          latestNewsItems: tenantConfig.latestNewsItems || []
-        }
-      }
-      
-      await mcpServicesStore.createTool(currentTenant.value._id, toolData)
-    }
-    
-    ElMessage.success('接口自动生成成功')
-    await loadTools()
-  } catch (error) {
-    console.error('自动生成接口失败:', error)
-    ElMessage.error('自动生成接口失败')
-  }
-}
+
 
 const handleCreateTool = () => {
   // 不再使用手动创建接口的功能
@@ -871,6 +827,53 @@ const handleCreateTool = () => {
 const handleConfigService = () => {
   // 填充表单默认值
   serviceConfigForm.displayName = currentTenant.value.name
+  serviceConfigForm.version = '0.1.0'
+  serviceConfigForm.author = ''
+  serviceConfigForm.license = 'MIT'
+  serviceConfigForm.repository = ''
+  serviceConfigForm.category = '信息查询'
+  serviceConfigForm.keywords = ''
+  serviceConfigForm.mcpServer.transport = 'streamable-http'
+  // 使用系统生成的MCP服务地址，包含商家标识
+  if (currentTenant.value) {
+    serviceConfigForm.mcpServer.url = `http://localhost:9000/api/mcp/${currentTenant.value.id}`
+  } else {
+    serviceConfigForm.mcpServer.url = 'http://localhost:9000/api/mcp'
+  }
+  serviceConfigForm.brandPrompt.systemInstruction = '你是一家餐厅的AI助手，用朴素、实在、有温度的方式回答问题。'
+  serviceConfigForm.brandPrompt.tone.personality = 'warm_and_honest'
+  serviceConfigForm.brandPrompt.tone.avoid = 'hype, clickbait, marketing_jargon'
+  serviceConfigForm.brandPrompt.brandKeywords = ''
+  
+  // 如果有现有配置，加载现有配置
+  if (currentTenant.value.serviceConfig) {
+    const config = currentTenant.value.serviceConfig
+    serviceConfigForm.displayName = config.displayName || serviceConfigForm.displayName
+    serviceConfigForm.version = config.version || serviceConfigForm.version
+    serviceConfigForm.author = config.author || serviceConfigForm.author
+    serviceConfigForm.license = config.license || serviceConfigForm.license
+    serviceConfigForm.repository = config.repository || serviceConfigForm.repository
+    serviceConfigForm.category = config.category || serviceConfigForm.category
+    serviceConfigForm.keywords = config.keywords || serviceConfigForm.keywords
+    if (config.mcpServer) {
+      serviceConfigForm.mcpServer.transport = config.mcpServer.transport || serviceConfigForm.mcpServer.transport
+      // 仍然使用系统生成的URL，包含商家标识，不使用保存的URL
+      if (currentTenant.value) {
+        serviceConfigForm.mcpServer.url = `http://localhost:9000/api/mcp/${currentTenant.value.id}`
+      } else {
+        serviceConfigForm.mcpServer.url = 'http://localhost:9000/api/mcp'
+      }
+    }
+    if (config.brandPrompt) {
+      serviceConfigForm.brandPrompt.systemInstruction = config.brandPrompt.systemInstruction || serviceConfigForm.brandPrompt.systemInstruction
+      if (config.brandPrompt.tone) {
+        serviceConfigForm.brandPrompt.tone.personality = config.brandPrompt.tone.personality || serviceConfigForm.brandPrompt.tone.personality
+        serviceConfigForm.brandPrompt.tone.avoid = Array.isArray(config.brandPrompt.tone.avoid) ? config.brandPrompt.tone.avoid.join(', ') : (config.brandPrompt.tone.avoid || serviceConfigForm.brandPrompt.tone.avoid)
+      }
+      serviceConfigForm.brandPrompt.brandKeywords = Array.isArray(config.brandPrompt.brandKeywords) ? config.brandPrompt.brandKeywords.join(', ') : (config.brandPrompt.brandKeywords || serviceConfigForm.brandPrompt.brandKeywords)
+    }
+  }
+  
   serviceConfigDialogVisible.value = true
 }
 
@@ -882,8 +885,28 @@ const handleSubmitServiceConfig = async () => {
 
   submittingServiceConfig.value = true
   try {
-    // 这里可以添加保存服务配置的逻辑
-    // 目前只是关闭对话框并显示成功消息
+    // 保存服务配置到租户信息
+    await tenantsStore.updateTenant(currentTenant.value.id, {
+      serviceConfig: {
+        displayName: serviceConfigForm.displayName,
+        version: serviceConfigForm.version,
+        author: serviceConfigForm.author,
+        license: serviceConfigForm.license,
+        repository: serviceConfigForm.repository,
+        category: serviceConfigForm.category,
+        keywords: serviceConfigForm.keywords,
+        mcpServer: serviceConfigForm.mcpServer,
+        brandPrompt: {
+          systemInstruction: serviceConfigForm.brandPrompt.systemInstruction,
+          tone: {
+            personality: serviceConfigForm.brandPrompt.tone.personality,
+            avoid: serviceConfigForm.brandPrompt.tone.avoid.split(',').map(item => item.trim()).filter(item => item)
+          },
+          brandKeywords: serviceConfigForm.brandPrompt.brandKeywords.split(',').map(item => item.trim()).filter(item => item)
+        }
+      }
+    })
+    
     ElMessage.success('服务配置保存成功')
     serviceConfigDialogVisible.value = false
   } catch (error) {
@@ -893,32 +916,436 @@ const handleSubmitServiceConfig = async () => {
   }
 }
 
+// 测试MCP服务器连接
+const testMcpServer = async () => {
+  if (!serviceConfigForm.mcpServer.url) {
+    ElMessage.warning('请先设置服务器URL')
+    return
+  }
+
+  // 清空之前的日志
+  logMessages.value = []
+  showLogMessages.value = true
+
+  const message = ElMessage({ type: 'info', message: '正在测试连接...', duration: 0, showClose: true })
+  
+  try {
+    // 构建请求
+    const url = serviceConfigForm.mcpServer.url + '/initialize'
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    const body = JSON.stringify({})
+    
+    // 添加请求日志
+    addLogMessage('request', `initialize ${body}`)
+    addLogMessage('info', '不需要API密钥')
+    
+    // 发送请求
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      timeout: 5000
+    })
+    
+    // 读取响应数据
+    let data
+    try {
+      data = await response.json()
+      // 添加响应日志
+      addLogMessage('response', `initialize ${JSON.stringify(data)}`)
+    } catch (parseError) {
+      // 解析JSON失败，可能是HTML响应
+      const text = await response.text()
+      addLogMessage('error', `解析响应失败: ${parseError.message}\n响应内容: ${text.substring(0, 200)}...`)
+      ElMessage.error('连接失败：响应不是有效的JSON格式')
+      return
+    }
+    
+    // 显示响应信息
+    if (response.ok) {
+      if (data.protocolVersion) {
+        ElMessage.success('连接成功！MCP服务正常')
+      } else {
+        ElMessage.error('连接失败：' + (data.error?.message || '未知错误'))
+      }
+    } else {
+      ElMessage.error('连接失败：' + response.statusText)
+    }
+  } catch (error) {
+    // 添加错误日志
+    addLogMessage('error', `连接失败: ${error.message || '网络错误'}`)
+    ElMessage.error('连接失败：' + (error.message || '网络错误'))
+  } finally {
+    // 关闭正在测试的消息
+    message.close()
+  }
+}
+
+// 测试tools/list接口
+const testToolsList = async () => {
+  if (!serviceConfigForm.mcpServer.url) {
+    ElMessage.warning('请先设置服务器URL')
+    return
+  }
+
+  // 清空之前的日志
+  logMessages.value = []
+  showLogMessages.value = true
+
+  const message = ElMessage({ type: 'info', message: '正在测试工具列表...', duration: 0, showClose: true })
+  
+  try {
+    // 构建请求
+    const url = serviceConfigForm.mcpServer.url + '/tools/list'
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    const body = JSON.stringify({})
+    
+    // 添加请求日志
+    addLogMessage('request', `tools/list ${body}`)
+    addLogMessage('info', '不需要API密钥')
+    
+    // 发送请求
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      timeout: 5000
+    })
+    
+    // 读取响应数据
+    let data
+    try {
+      data = await response.json()
+      // 添加响应日志
+      addLogMessage('response', `tools/list ${JSON.stringify(data)}`)
+    } catch (parseError) {
+      // 解析JSON失败，可能是HTML响应
+      const text = await response.text()
+      addLogMessage('error', `解析响应失败: ${parseError.message}\n响应内容: ${text.substring(0, 200)}...`)
+      ElMessage.error('连接失败：响应不是有效的JSON格式')
+      return
+    }
+    
+    // 显示响应信息
+    if (response.ok) {
+      if (data.tools && Array.isArray(data.tools)) {
+        ElMessage.success(`工具列表获取成功！共${data.tools.length}个工具`)
+      } else {
+        ElMessage.error('连接失败：' + (data.error?.message || '未知错误'))
+      }
+    } else {
+      ElMessage.error('连接失败：' + response.statusText)
+    }
+  } catch (error) {
+    // 添加错误日志
+    addLogMessage('error', `连接失败: ${error.message || '网络错误'}`)
+    ElMessage.error('连接失败：' + (error.message || '网络错误'))
+  } finally {
+    // 关闭正在测试的消息
+    message.close()
+  }
+}
+
+// 测试所有已配置接口
+const testAllTools = async () => {
+  if (!serviceConfigForm.mcpServer.url) {
+    ElMessage.warning('请先设置服务器URL')
+    return
+  }
+
+  // 清空之前的日志
+  logMessages.value = []
+  showLogMessages.value = true
+
+  const message = ElMessage({ type: 'info', message: '正在测试所有接口...', duration: 0, showClose: true })
+  
+  try {
+    // 先测试initialize
+    await testMcpServerInternal()
+    
+    // 再测试tools/list
+    const tools = await testToolsListInternal()
+    
+    // 最后测试每个工具
+    if (tools && tools.length > 0) {
+      addLogMessage('info', `开始测试${tools.length}个工具...`)
+      for (const tool of tools) {
+        await testTool(tool.name)
+      }
+      ElMessage.success('所有接口测试完成！')
+    } else {
+      ElMessage.warning('没有找到可测试的工具')
+    }
+  } catch (error) {
+    // 添加错误日志
+    addLogMessage('error', `测试过程中出错: ${error.message || '未知错误'}`)
+    ElMessage.error('测试过程中出错：' + (error.message || '未知错误'))
+  } finally {
+    // 关闭正在测试的消息
+    message.close()
+  }
+}
+
+// 内部测试函数，不显示消息提示
+const testMcpServerInternal = async () => {
+  try {
+    const url = serviceConfigForm.mcpServer.url + '/initialize'
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    const body = JSON.stringify({})
+    
+    addLogMessage('request', `initialize ${body}`)
+    addLogMessage('info', '不需要API密钥')
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      timeout: 5000
+    })
+    
+    let data
+    try {
+      data = await response.json()
+      addLogMessage('response', `initialize ${JSON.stringify(data)}`)
+    } catch (parseError) {
+      // 解析JSON失败，可能是HTML响应
+      const text = await response.text()
+      addLogMessage('error', `解析响应失败: ${parseError.message}\n响应内容: ${text.substring(0, 200)}...`)
+      throw new Error('响应不是有效的JSON格式')
+    }
+    
+    if (response.ok && data.protocolVersion) {
+      return true
+    } else {
+      throw new Error(data.error?.message || '初始化失败')
+    }
+  } catch (error) {
+    addLogMessage('error', `initialize失败: ${error.message || '网络错误'}`)
+    throw error
+  }
+}
+
+// 内部测试工具列表函数，返回工具列表
+const testToolsListInternal = async () => {
+  try {
+    const url = serviceConfigForm.mcpServer.url + '/tools/list'
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    const body = JSON.stringify({})
+    
+    addLogMessage('request', `tools/list ${body}`)
+    addLogMessage('info', '不需要API密钥')
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      timeout: 5000
+    })
+    
+    let data
+    try {
+      data = await response.json()
+      addLogMessage('response', `tools/list ${JSON.stringify(data)}`)
+    } catch (parseError) {
+      // 解析JSON失败，可能是HTML响应
+      const text = await response.text()
+      addLogMessage('error', `解析响应失败: ${parseError.message}\n响应内容: ${text.substring(0, 200)}...`)
+      throw new Error('响应不是有效的JSON格式')
+    }
+    
+    if (response.ok && data.tools && Array.isArray(data.tools)) {
+      return data.tools
+    } else {
+      throw new Error(data.error?.message || '获取工具列表失败')
+    }
+  } catch (error) {
+    addLogMessage('error', `tools/list失败: ${error.message || '网络错误'}`)
+    throw error
+  }
+}
+
+// 处理租户选择变更
+const handleTenantChange = async (tenantId) => {
+  if (!tenantId) return
+  
+  // 从租户列表中找到选中的租户
+  const selectedTenant = tenants.value.find(tenant => tenant.id === tenantId)
+  if (selectedTenant) {
+    // 设置当前租户
+    tenantsStore.setCurrentTenant(selectedTenant)
+    // 加载MCP服务
+    await loadMcpService()
+    // 加载工具列表
+    await loadTools()
+  }
+}
+
+// 加载租户列表
+const loadTenants = async () => {
+  try {
+    const tenantList = await tenantsStore.fetchTenants()
+    tenants.value = tenantList
+    
+    // 如果有租户，默认选中第一个
+    if (tenantList.length > 0) {
+      selectedTenantId.value = tenantList[0].id
+      // 触发租户选择变更
+      await handleTenantChange(tenantList[0].id)
+    }
+  } catch (error) {
+    console.error('加载租户列表失败:', error)
+  }
+}
+
+// 测试单个工具
+const testTool = async (toolName) => {
+  try {
+    const url = serviceConfigForm.mcpServer.url + '/tools/call'
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    const body = JSON.stringify({
+      toolcall: {
+        name: toolName,
+        params: {}
+      }
+    })
+    
+    addLogMessage('request', `tools/call ${toolName} ${body}`)
+    addLogMessage('info', '不需要API密钥')
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      timeout: 5000
+    })
+    
+    let data
+    try {
+      data = await response.json()
+      addLogMessage('response', `tools/call ${toolName} ${JSON.stringify(data)}`)
+    } catch (parseError) {
+      // 解析JSON失败，可能是HTML响应
+      const text = await response.text()
+      addLogMessage('error', `解析响应失败: ${parseError.message}\n响应内容: ${text.substring(0, 200)}...`)
+      return
+    }
+    
+    if (response.ok) {
+      addLogMessage('info', `工具 ${toolName} 测试成功`)
+    } else {
+      addLogMessage('error', `工具 ${toolName} 测试失败: ${data.error?.message || '未知错误'}`)
+    }
+  } catch (error) {
+    addLogMessage('error', `工具 ${toolName} 测试失败: ${error.message || '网络错误'}`)
+  }
+}
+
+// 调用工具并显示结果
+const callTool = async (toolName) => {
+  try {
+    // 构建请求URL，确保包含租户ID
+    let url
+    if (currentTenant.value) {
+      url = `http://localhost:9000/api/mcp/${currentTenant.value.id}/tools/call`
+    } else {
+      url = 'http://localhost:9000/api/mcp/tools/call'
+    }
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    const body = JSON.stringify({
+      toolcall: {
+        name: toolName,
+        params: {}
+      }
+    })
+    
+    // 显示加载状态
+    const loadingMessage = ElMessage({ type: 'info', message: `正在调用接口: ${toolName}`, duration: 0, showClose: true })
+    
+    // 发送请求
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      timeout: 5000
+    })
+    
+    let data
+    try {
+      data = await response.json()
+    } catch (parseError) {
+      // 解析JSON失败，可能是HTML响应
+      const text = await response.text()
+      ElMessage.error('响应不是有效的JSON格式')
+      loadingMessage.close()
+      return null
+    }
+    
+    // 关闭加载状态
+    loadingMessage.close()
+    
+    // 显示响应信息
+    if (response.ok && data.status === 'success') {
+      ElMessage.success(`接口调用成功: ${toolName}`)
+      return data.result
+    } else {
+      ElMessage.error(`接口调用失败: ${data.error || '未知错误'}`)
+      return null
+    }
+  } catch (error) {
+    ElMessage.error(`接口调用失败: ${error.message || '网络错误'}`)
+    return null
+  }
+}
+
+// 添加日志消息
+const addLogMessage = (type, content) => {
+  const now = new Date()
+  const time = now.toTimeString().split(' ')[0]
+  logMessages.value.push({
+    type,
+    content,
+    time
+  })
+  // 滚动到底部
+  setTimeout(() => {
+    const logContainer = document.querySelector('.log-messages')
+    if (logContainer) {
+      logContainer.scrollTop = logContainer.scrollHeight
+    }
+  }, 0)
+}
+
 // 获取商家列表
 const fetchTenants = async () => {
   try {
     await tenantsStore.fetchTenants()
     tenants.value = tenantsStore.tenants
     if (currentTenant.value) {
-      selectedTenantId.value = currentTenant.value._id
+      selectedTenantId.value = currentTenant.value.id
     }
   } catch (error) {
     console.error('获取商家列表失败:', error)
   }
 }
 
-// 处理商家选择变化
-const handleTenantChange = async (tenantId) => {
-  try {
-    const tenant = tenants.value.find(t => t._id === tenantId)
-    if (tenant) {
-      await tenantsStore.setCurrentTenant(tenant)
-      await loadMcpService()
-      await loadTools()
-    }
-  } catch (error) {
-    console.error('切换商家失败:', error)
-  }
-}
+
 
 
 
@@ -1205,9 +1632,9 @@ const handleSubmitTool = async () => {
     }
 
     if (isEdit.value) {
-      await mcpServicesStore.updateTool(currentTenant.value._id, currentToolId.value, toolData)
+      await mcpServicesStore.updateTool(currentTenant.value.id, currentToolId.value, toolData)
     } else {
-      await mcpServicesStore.createTool(currentTenant.value._id, toolData)
+      await mcpServicesStore.createTool(currentTenant.value.id, toolData)
     }
 
     ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
@@ -1219,18 +1646,21 @@ const handleSubmitTool = async () => {
   }
 }
 
-const handleViewTool = (tool) => {
-  // 显示接口信息，不允许编辑
-  isEdit.value = true
-  currentToolId.value = tool.id
-  toolForm.name = tool.name
-  toolForm.title = tool.title
-  toolForm.type = tool.type
-  toolForm.description = tool.description || ''
-  toolForm.config = JSON.parse(JSON.stringify(tool.config))
-  
-  // 打开对话框，但禁用所有表单字段
-  toolDialogVisible.value = true
+const handleViewTool = async (tool) => {
+  // 调用接口获取真实数据
+  const result = await callTool(tool.name)
+  if (result) {
+    // 直接显示返回结果
+    ElMessageBox.alert(
+      `<pre style="white-space: pre-wrap; word-wrap: break-word;">${JSON.stringify(result, null, 2)}</pre>`,
+      `${tool.title} - 接口返回结果`,
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '确定',
+        customClass: 'result-dialog'
+      }
+    )
+  }
 }
 
 const handleEditTool = (tool) => {
@@ -1329,11 +1759,7 @@ onMounted(async () => {
 
 <style scoped>
 .mcp-management-container {
-  padding: 20px 0;
-}
-
-.mcp-card {
-  margin-bottom: 20px;
+  padding: 20px;
 }
 
 .card-header {
@@ -1345,25 +1771,10 @@ onMounted(async () => {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.card-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
-}
-
-.tenant-tag {
-  font-size: 12px;
-}
-
-.tenant-alert {
-  margin-bottom: 20px;
+  gap: 10px;
 }
 
 .tenant-select {
-  margin-left: 20px;
   width: 200px;
 }
 
@@ -1371,98 +1782,50 @@ onMounted(async () => {
   margin-left: 10px;
 }
 
-.create-service-section {
-  padding: 60px 0;
-}
-
-.mcp-info-section {
-  margin-bottom: 30px;
-}
-
-.mcp-info-section h3 {
+.tenant-alert {
   margin-bottom: 20px;
-  font-size: 16px;
-  color: #303133;
-  font-weight: 600;
 }
 
-.tools-section {
-  margin-bottom: 30px;
+.create-service-section {
+  text-align: center;
+  padding: 40px 0;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
-.section-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #303133;
-  font-weight: 600;
+.mcp-info-section,
+.tools-section {
+  margin-bottom: 30px;
 }
 
 .generate-section {
-  margin-top: 30px;
-  text-align: center;
+  margin-top: 20px;
+  text-align: right;
 }
 
 .config-section {
-  margin-top: 20px;
-  padding: 20px;
-  background-color: #f5f7fa;
+  margin-bottom: 25px;
+  padding: 15px;
+  border: 1px solid #e4e7ed;
   border-radius: 4px;
-}
-
-.config-section h4 {
-  margin-bottom: 20px;
-  font-size: 14px;
-  color: #303133;
-  font-weight: 600;
+  background-color: #f9f9f9;
 }
 
 .locations-section,
 .queue-methods-section,
 .queue-stores-section {
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .location-item,
 .queue-method-item,
 .queue-store-item {
   margin-bottom: 15px;
-}
-
-/* 紧凑布局样式 */
-.compact-section {
-  margin-top: 15px;
-}
-
-.compact-item {
-  margin-bottom: 10px;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 10px;
-  background-color: #fff;
-}
-
-.compact-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.compact-form-item {
-  margin-bottom: 0 !important;
-}
-
-.compact-form-item .el-input {
-  width: 100%;
 }
 
 .location-header,
@@ -1473,8 +1836,31 @@ onMounted(async () => {
   align-items: center;
 }
 
+.compact-section {
+  margin-top: 10px;
+}
+
+.compact-item {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+.compact-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.compact-form-item {
+  margin-bottom: 0;
+}
+
 .json-preview {
-  padding: 10px 0;
+  margin-top: 20px;
 }
 
 .json-info {
@@ -1483,19 +1869,123 @@ onMounted(async () => {
 
 .json-code {
   background-color: #f5f7fa;
-  padding: 15px;
+  border: 1px solid #e4e7ed;
   border-radius: 4px;
-  font-family: monospace;
-  font-size: 12px;
-  line-height: 1.6;
+  padding: 15px;
   overflow-x: auto;
-  max-height: 500px;
-  overflow-y: auto;
+  font-family: 'Courier New', Courier, monospace;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .json-actions {
   margin-top: 15px;
+  text-align: right;
+}
+
+/* 滚动消息样式 */
+.log-messages {
+  margin-top: 10px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  line-height: 1.4;
+  position: relative;
+}
+
+.log-message {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  animation: fadeIn 0.3s ease-in-out;
+  position: relative;
+}
+
+.log-message.request {
+  background-color: #e6f7ff;
+  border-left: 4px solid #1890ff;
+}
+
+.log-message.response {
+  background-color: #f6ffed;
+  border-left: 4px solid #52c41a;
+}
+
+.log-message.error {
+  background-color: #fff2f0;
+  border-left: 4px solid #ff4d4f;
+}
+
+.log-message.info {
+  background-color: #f0f5ff;
+  border-left: 4px solid #722ed1;
+}
+
+.log-header {
   display: flex;
-  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.log-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.log-type {
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+.log-type.request {
+  background-color: #1890ff;
+  color: white;
+}
+
+.log-type.response {
+  background-color: #52c41a;
+  color: white;
+}
+
+.log-type.error {
+  background-color: #ff4d4f;
+  color: white;
+}
+
+.log-type.info {
+  background-color: #722ed1;
+  color: white;
+}
+
+.log-content {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.log-divider {
+  height: 1px;
+  background-color: #e4e7ed;
+  margin: 10px 0;
+  opacity: 0.5;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

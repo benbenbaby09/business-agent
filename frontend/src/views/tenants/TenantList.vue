@@ -42,7 +42,7 @@
               <el-button size="small" type="success" @click="handlePublishTenant(scope.row)">
                 发布
               </el-button>
-              <el-button size="small" type="danger" @click="handleDeleteTenant(scope.row._id)">
+              <el-button size="small" type="danger" @click="handleDeleteTenant(scope.row.id)">
                 删除
               </el-button>
             </el-button-group>
@@ -60,6 +60,9 @@
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入商家名称" />
+        </el-form-item>
+        <el-form-item label="英文名" prop="englishName">
+          <el-input v-model="form.englishName" placeholder="请输入商家英文名，用于生成技能名称" />
         </el-form-item>
         <el-form-item label="描述" prop="description">
           <el-input
@@ -368,6 +371,12 @@
           show-icon
           class="publish-info"
         />
+        <div class="download-section" style="margin-bottom: 20px;">
+          <el-button @click="downloadCurrentVersion" :disabled="!currentPublishTenant">
+            <el-icon><Download /></el-icon>
+            下载当前版本
+          </el-button>
+        </div>
         <el-tabs v-model="activePreviewTab">
           <el-tab-pane label="SKILL.md">
             <div class="skill-md-preview">
@@ -438,6 +447,7 @@
                 打开链接
               </el-button>
             </el-form-item>
+
           </el-form>
         </div>
       </div>
@@ -484,6 +494,7 @@ const configFormRef = ref(null)
 
 const form = reactive({
   name: '',
+  englishName: '',
   description: '',
   type: 'restaurant_entity',
   status: 'active'
@@ -670,6 +681,7 @@ const handleCreateTenant = () => {
   isEdit.value = false
   currentTenantId.value = ''
   form.name = ''
+  form.englishName = ''
   form.description = ''
   form.type = 'restaurant_entity'
   form.status = 'active'
@@ -678,8 +690,9 @@ const handleCreateTenant = () => {
 
 const handleEditTenant = (tenant) => {
   isEdit.value = true
-  currentTenantId.value = tenant._id
+  currentTenantId.value = tenant.id
   form.name = tenant.name
+  form.englishName = tenant.englishName || ''
   form.description = tenant.description || ''
   form.type = tenant.type || 'restaurant_entity'
   form.status = tenant.status
@@ -737,7 +750,7 @@ const handleDeleteTenant = (id) => {
 
 const handleViewTenant = (tenant) => {
   tenantsStore.setCurrentTenant(tenant)
-  router.push(`/tenants/${tenant._id}`)
+  router.push(`/tenants/${tenant.id}`)
 }
 
 const handleMcpConfig = (tenant) => {
@@ -816,7 +829,7 @@ const handleSaveConfig = async () => {
 
   configSubmitting.value = true
   try {
-    await tenantsStore.updateTenant(currentConfigTenant.value._id, {
+    await tenantsStore.updateTenant(currentConfigTenant.value.id, {
       config: {
         ...currentConfigTenant.value.config,
         // 基本信息
@@ -871,7 +884,7 @@ const handlePublishTenant = async (tenant) => {
   
   try {
     // 调用后端预览接口，获取真实的预览内容
-    const response = await fetch(`/api/tenants/${tenant._id}/preview`, {
+    const response = await fetch(`/api/tenants/${tenant.id}/preview`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1022,7 +1035,7 @@ const handleNextStep = async () => {
     
     try {
       // 调用后端发布接口
-      const response = await fetch(`/api/tenants/${currentPublishTenant.value._id}/publish`, {
+      const response = await fetch(`/api/tenants/${currentPublishTenant.value.id}/publish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1033,7 +1046,12 @@ const handleNextStep = async () => {
       
       const data = await response.json()
       if (response.ok) {
-        publishResultForm.skillUrl = data.skill_url
+        // 使用后端服务器地址构建完整的Skill文件URL
+        const backendUrl = 'http://localhost:9000'
+        const fullUrl = data.skill_url.startsWith('/') 
+          ? backendUrl + data.skill_url 
+          : data.skill_url
+        publishResultForm.skillUrl = fullUrl
         publishResultForm.saveStatus = 'success'
       } else {
         throw new Error(data.error || '发布失败')
@@ -1048,19 +1066,45 @@ const handleNextStep = async () => {
 }
 
 const copySkillUrl = () => {
-  navigator.clipboard.writeText(publishResultForm.skillUrl)
-    .then(() => {
-      ElMessage.success('Skill文件URL已复制到剪贴板')
-    })
-    .catch(err => {
-      console.error('复制失败:', err)
-      ElMessage.error('复制失败，请手动复制')
-    })
+  if (publishResultForm.skillUrl) {
+    // 使用后端服务器地址构建完整的Skill文件URL
+    const backendUrl = 'http://localhost:9000'
+    const fullUrl = publishResultForm.skillUrl.startsWith('/') 
+      ? backendUrl + publishResultForm.skillUrl 
+      : publishResultForm.skillUrl
+    navigator.clipboard.writeText(fullUrl)
+      .then(() => {
+        ElMessage.success('Skill文件URL已复制到剪贴板')
+      })
+      .catch(err => {
+        console.error('复制失败:', err)
+        ElMessage.error('复制失败，请手动复制')
+      })
+  }
 }
 
 const openSkillUrl = () => {
   if (publishResultForm.skillUrl) {
-    window.open(publishResultForm.skillUrl, '_blank')
+    // 使用后端服务器地址打开Skill文件
+    const backendUrl = 'http://localhost:9000'
+    const fullUrl = publishResultForm.skillUrl.startsWith('/') 
+      ? backendUrl + publishResultForm.skillUrl 
+      : publishResultForm.skillUrl
+    window.open(fullUrl, '_blank')
+  }
+}
+
+const downloadCurrentVersion = () => {
+  if (currentPublishTenant.value) {
+    // 构建当前版本的下载URL
+    const backendUrl = 'http://localhost:9000'
+    const downloadUrl = `${backendUrl}/storage/skills/${currentPublishTenant.value.id}/skill.zip`
+    
+    // 触发下载
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = `skill-${currentPublishTenant.value.name}.zip`
+    link.click()
   }
 }
 

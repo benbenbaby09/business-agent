@@ -1,0 +1,33 @@
+{
+  "name": "sunpro-skill",
+  "display_name": "广州阳普饺子馆信息查询",
+  "description": "广州阳普饺子馆信息查询与在线排队取号",
+  "version": "0.4.2",
+  "author": "广州阳普饺子馆",
+  "license": "MIT",
+  "repository": "",
+  "category": "信息查询",
+  "keywords": [
+    "广州阳普饺子馆",
+    "信息查询",
+    "排队取号"
+  ],
+  "mcpServer": {
+    "transport": "streamable-http",
+    "url": "http://localhost:9000/api/mcp/tenant_2"
+  },
+  "brandPrompt": {
+    "systemInstruction": "你是一家餐厅的AI助手，用朴素、实在、有温度的方式回答问题。",
+    "tone": {
+      "personality": "warm_and_honest",
+      "avoid": [
+        "hype",
+        "clickbait",
+        "marketing_jargon"
+      ]
+    },
+    "brandKeywords": [
+      "广州阳普饺子馆"
+    ]
+  }
+}

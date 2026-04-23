@@ -11,7 +11,7 @@ export const useTenantsStore = defineStore('tenants', {
   
   getters: {
     getTenantById: (state) => (id) => {
-      return state.tenants.find(tenant => tenant._id === id)
+      return state.tenants.find(tenant => tenant.id === id)
     }
   },
   
@@ -90,12 +90,12 @@ export const useTenantsStore = defineStore('tenants', {
           }
         })
         
-        const index = this.tenants.findIndex(tenant => tenant._id === id)
+        const index = this.tenants.findIndex(tenant => tenant.id === id)
         if (index !== -1) {
           this.tenants[index] = response.data
         }
         
-        if (this.currentTenant && this.currentTenant._id === id) {
+        if (this.currentTenant && this.currentTenant.id === id) {
           this.currentTenant = response.data
         }
         
@@ -119,8 +119,8 @@ export const useTenantsStore = defineStore('tenants', {
           }
         })
         
-        this.tenants = this.tenants.filter(tenant => tenant._id !== id)
-        if (this.currentTenant && this.currentTenant._id === id) {
+        this.tenants = this.tenants.filter(tenant => tenant.id !== id)
+        if (this.currentTenant && this.currentTenant.id === id) {
           this.currentTenant = null
         }
       } catch (error) {
