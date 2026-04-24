@@ -10,6 +10,10 @@ from mcp.tenant import tenant_manager
 # 工具模板文件路径（项目目录下的templates文件夹）
 TOOL_TEMPLATES_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates', 'tool_templates.json')
 
+# 确保templates目录存在
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
+os.makedirs(templates_dir, exist_ok=True)
+
 # 确保工具模板文件存在
 if not os.path.exists(TOOL_TEMPLATES_FILE):
     with open(TOOL_TEMPLATES_FILE, 'w', encoding='utf-8') as f:
@@ -19,10 +23,12 @@ if not os.path.exists(TOOL_TEMPLATES_FILE):
 bp = Blueprint('tenants', __name__)
 
 # 租户数据文件路径（用户数据目录/data）
-TENANTS_FILE = '/data/tenants.json'
+# 使用服务器的/data目录
+DATA_DIR = '/data'
+TENANTS_FILE = os.path.join(DATA_DIR, 'tenants.json')
 
 # 确保数据目录存在
-os.makedirs('/data', exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # 初始化租户数据
 if not os.path.exists(TENANTS_FILE):
@@ -31,6 +37,13 @@ if not os.path.exists(TENANTS_FILE):
 
 # 加载租户数据
 def load_tenants():
+    # 确保数据目录存在
+    os.makedirs(DATA_DIR, exist_ok=True)
+    # 确保数据文件存在
+    if not os.path.exists(TENANTS_FILE):
+        with open(TENANTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump([], f, ensure_ascii=False, indent=2)
+    # 读取数据
     with open(TENANTS_FILE, 'r', encoding='utf-8') as f:
         return json.load(f)
 
@@ -39,10 +52,47 @@ def save_tenants(tenants):
     with open(TENANTS_FILE, 'w', encoding='utf-8') as f:
         json.dump(tenants, f, ensure_ascii=False, indent=2)
 
+def get_public_backend_url():
+    env_url = os.environ.get('PUBLIC_BACKEND_URL') or os.environ.get('BACKEND_URL')
+    if env_url:
+        return env_url.rstrip('/')
+    forwarded_proto = request.headers.get('X-Forwarded-Proto')
+    forwarded_host = request.headers.get('X-Forwarded-Host')
+    proto = (forwarded_proto.split(',')[0].strip() if forwarded_proto else request.scheme)
+    host = (forwarded_host.split(',')[0].strip() if forwarded_host else request.host)
+    host_name = host.split(':')[0].strip().lower()
+    is_local = host_name in ('localhost', '127.0.0.1', '0.0.0.0') or host_name.endswith('.local')
+    if not is_local and not forwarded_proto and proto == 'http':
+        proto = 'https'
+    return f"{proto}://{host}".rstrip('/')
+
 # 加载工具模板
 def load_tool_templates():
-    with open(TOOL_TEMPLATES_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    try:
+        with open(TOOL_TEMPLATES_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading tool templates: {e}")
+        return {}
+
+def build_skill_tools(tenant, shop_name):
+    tool_templates = load_tool_templates() or {}
+    tenant_type = tenant.get('type', 'restaurant_entity')
+    template_list = tool_templates.get(tenant_type) or tool_templates.get('restaurant_entity') or []
+    input_schema = {"type": "object", "properties": {}, "additionalProperties": True}
+    tools = []
+    for t in template_list:
+        name = t.get('name')
+        if not name:
+            continue
+        title = t.get('title') or name
+        tools.append({
+            "name": name,
+            "display_name": title,
+            "description": f"获取{shop_name}{title}信息",
+            "inputSchema": input_schema
+        })
+    return tools
 
 @bp.route('', methods=['GET', 'POST', 'OPTIONS'])
 @bp.route('/', methods=['GET', 'POST', 'OPTIONS'])
@@ -54,6 +104,10 @@ def handle_tenants():
     elif request.method == 'GET':
         # 获取租户列表
         tenants = load_tenants()
+        # 确保每个租户都有type字段
+        for tenant in tenants:
+            if 'type' not in tenant:
+                tenant['type'] = 'restaurant_entity'
         return jsonify(tenants)
     elif request.method == 'POST':
         # 创建租户
@@ -78,6 +132,7 @@ def handle_tenants():
         
         tenants.append(tenant)
         save_tenants(tenants)
+        tenant_manager.reload_tenants()
         
         return jsonify(tenant)
 
@@ -87,6 +142,9 @@ def get_tenant(tenant_id):
     tenants = load_tenants()
     for tenant in tenants:
         if tenant['id'] == tenant_id:
+            # 确保租户有type字段
+            if 'type' not in tenant:
+                tenant['type'] = 'restaurant_entity'
             return jsonify(tenant)
     return jsonify({'error': '租户不存在'}), 404
 
@@ -104,10 +162,7 @@ def update_tenant(tenant_id):
             tenant['updated_at'] = datetime.now().isoformat()
             
             save_tenants(tenants)
-            
-            # 同时更新MCP tenant_manager的缓存
-            # 传递完整的租户数据，确保tenant_manager中的数据是最新的
-            tenant_manager.update_tenant(tenant_id, tenant)
+            tenant_manager.reload_tenants()
             
             return jsonify(tenant)
     
@@ -123,6 +178,7 @@ def delete_tenant(tenant_id):
         return jsonify({'error': '租户不存在'}), 404
     
     save_tenants(new_tenants)
+    tenant_manager.reload_tenants()
     return jsonify({'message': '租户删除成功'})
 
 @bp.route('/<tenant_id>/preview', methods=['POST', 'OPTIONS'])
@@ -253,7 +309,7 @@ def preview_tenant(tenant_id):
         ],
         "mcpServer": {
             "transport": "streamable-http",
-            "url": f"http://localhost:9000/api/mcp/{tenant_id}"
+            "url": f"{get_public_backend_url()}/api/mcp/{tenant_id}"
         },
         "brandPrompt": {
             "systemInstruction": "你是一家餐厅的AI助手，用朴素、实在、有温度的方式回答问题。",
@@ -270,6 +326,7 @@ def preview_tenant(tenant_id):
             ]
         }
     }
+    skill_json["tools"] = build_skill_tools(tenant, shop_name)
     
     return jsonify({
         'skillMd': skill_md,
@@ -404,7 +461,7 @@ def publish_tenant(tenant_id):
         ],
         "mcpServer": {
             "transport": "streamable-http",
-            "url": f"http://localhost:9000/api/mcp/{tenant_id}"
+            "url": f"{get_public_backend_url()}/api/mcp/{tenant_id}"
         },
         "brandPrompt": {
             "systemInstruction": "你是一家餐厅的AI助手，用朴素、实在、有温度的方式回答问题。",
@@ -421,6 +478,7 @@ def publish_tenant(tenant_id):
             ]
         }
     }
+    skill_json["tools"] = build_skill_tools(tenant, shop_name)
     
     # 保存技能文件（用户数据目录/data）
     skill_dir = f'/data/skills/{tenant_id}'
@@ -498,7 +556,8 @@ def handle_mcp_service(tenant_id):
         if 'mcp_service' in tenant:
             return jsonify(tenant['mcp_service'])
         else:
-            return jsonify({'error': 'MCP服务不存在'}), 404
+            # MCP服务不存在，返回空对象而不是404错误
+            return jsonify({'error': 'MCP服务不存在'}), 200
     elif request.method == 'POST':
         # 创建MCP服务
         mcp_service = {
@@ -515,26 +574,36 @@ def handle_mcp_service(tenant_id):
         tenant['mcp_service'] = mcp_service
         
         # 从工具模板中获取工具信息
-        tool_templates = load_tool_templates()
-        tenant_type = tenant.get('type', 'restaurant_entity')
-        tenant['tools'] = []
+        try:
+            tool_templates = load_tool_templates()
+            tenant_type = tenant.get('type', 'restaurant_entity')
+            tenant['tools'] = []
+            
+            if tenant_type in tool_templates:
+                for i, template in enumerate(tool_templates[tenant_type]):
+                    tool_id = f"tool_{i + 1}"
+                    tool = {
+                        'id': tool_id,
+                        'tenant_id': tenant_id,
+                        'name': template['name'],
+                        'title': template['title'],
+                        'type': template['type'],
+                        'description': f"获取{tenant.get('name', '商家')}{template['title']}信息",
+                        'created_at': datetime.now().isoformat(),
+                        'updated_at': datetime.now().isoformat()
+                    }
+                    tenant['tools'].append(tool)
+        except Exception as e:
+            print(f"Error loading tool templates: {e}")
+            # 即使工具模板加载失败，也继续创建MCP服务
+            tenant['tools'] = []
         
-        if tenant_type in tool_templates:
-            for i, template in enumerate(tool_templates[tenant_type]):
-                tool_id = f"tool_{i + 1}"
-                tool = {
-                    'id': tool_id,
-                    'tenant_id': tenant_id,
-                    'name': template['name'],
-                    'title': template['title'],
-                    'type': template['type'],
-                    'description': f"获取{tenant.get('name', '商家')}{template['title']}信息",
-                    'created_at': datetime.now().isoformat(),
-                    'updated_at': datetime.now().isoformat()
-                }
-                tenant['tools'].append(tool)
-        
-        save_tenants(tenants)
+        # 保存租户数据
+        try:
+            save_tenants(tenants)
+        except Exception as e:
+            print(f"Error saving tenants: {e}")
+            return jsonify({'error': '保存租户数据失败'}), 500
         
         return jsonify(mcp_service)
 
@@ -557,11 +626,7 @@ def handle_mcp_tools(tenant_id):
     if not tenant:
         return jsonify({'error': '租户不存在'}), 404
     
-    # 确保租户有MCP服务
-    if 'mcp_service' not in tenant:
-        return jsonify({'error': 'MCP服务不存在'}), 404
-    
-    # 动态从工具模板加载工具列表（不保存到文件）
+    # 动态从工具模板加载工具列表（不保存到租户对象）
     try:
         tool_templates = load_tool_templates()
         tenant_type = tenant.get('type', 'restaurant_entity')
@@ -579,6 +644,7 @@ def handle_mcp_tools(tenant_id):
                     'title': template['title'],
                     'type': template['type'],
                     'description': f"获取{tenant.get('name', '商家')}{template['title']}信息",
+                    'config': {},
                     'created_at': datetime.now().isoformat(),
                     'updated_at': datetime.now().isoformat()
                 }
@@ -593,17 +659,13 @@ def handle_mcp_tools(tenant_id):
         tools = []
     
     if request.method == 'GET':
-        # 返回动态生成的工具列表
+        # 返回工具列表
         return jsonify(tools)
     elif request.method == 'POST':
-        # 创建工具
+        # 伪装创建工具成功，不保存到租户对象
         data = request.get_json()
-        tools = tenant['tools']
         
-        # 生成工具ID
         tool_id = f"tool_{len(tools) + 1}"
-        
-        # 创建工具对象
         tool = {
             'id': tool_id,
             'tenant_id': tenant_id,
@@ -615,9 +677,6 @@ def handle_mcp_tools(tenant_id):
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
-        
-        tools.append(tool)
-        save_tenants(tenants)
         
         return jsonify(tool)
 
@@ -639,32 +698,48 @@ def handle_mcp_tool(tenant_id, tool_id):
     if not tenant:
         return jsonify({'error': '租户不存在'}), 404
     
-    # 确保租户有工具列表
-    if 'tools' not in tenant:
-        tenant['tools'] = []
-    
-    # 查找工具
+    # 查找工具（从模板动态生成中查找）
     tool = None
-    for t in tenant['tools']:
-        if t['id'] == tool_id:
-            tool = t
-            break
-    
-    if not tool:
+    try:
+        tool_templates = load_tool_templates()
+        tenant_type = tenant.get('type', 'restaurant_entity')
+        
+        if tenant_type in tool_templates:
+            for i, template in enumerate(tool_templates[tenant_type]):
+                if f"tool_{i + 1}" == tool_id:
+                    tool = {
+                        'id': f"tool_{i + 1}",
+                        'tenant_id': tenant_id,
+                        'name': template['name'],
+                        'title': template['title'],
+                        'type': template['type'],
+                        'description': f"获取{tenant.get('name', '商家')}{template['title']}信息",
+                        'config': {},
+                        'created_at': datetime.now().isoformat(),
+                        'updated_at': datetime.now().isoformat()
+                    }
+                    break
+    except Exception as e:
+        print(f"Error loading tools: {e}")
+        
+    if not tool and request.method == 'GET':
         return jsonify({'error': '工具不存在'}), 404
-    
+        
     if request.method == 'GET':
         # 获取工具详情
         return jsonify(tool)
     elif request.method == 'PUT':
-        # 更新工具
+        # 伪装更新工具成功，不保存到租户对象
         data = request.get_json()
-        tool.update(data)
-        tool['updated_at'] = datetime.now().isoformat()
-        save_tenants(tenants)
-        return jsonify(tool)
+        if tool:
+            tool.update(data)
+            tool['updated_at'] = datetime.now().isoformat()
+            return jsonify(tool)
+        else:
+            data['id'] = tool_id
+            data['tenant_id'] = tenant_id
+            data['updated_at'] = datetime.now().isoformat()
+            return jsonify(data)
     elif request.method == 'DELETE':
-        # 删除工具
-        tenant['tools'] = [t for t in tenant['tools'] if t['id'] != tool_id]
-        save_tenants(tenants)
+        # 伪装删除工具成功，不保存到租户对象
         return jsonify({'message': '工具删除成功'})

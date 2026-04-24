@@ -8,10 +8,12 @@ load_dotenv()
 
 # 确保所有必要的目录存在
 import os
+# 使用服务器的/data目录
+DATA_DIR = '/data'
 # 创建主数据目录
-os.makedirs('/data', exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
 # 创建技能文件存储目录
-os.makedirs('/data/skills', exist_ok=True)
+os.makedirs(os.path.join(DATA_DIR, 'skills'), exist_ok=True)
 
 # 初始化Flask应用
 app = Flask(__name__)

@@ -11,11 +11,12 @@ class TenantTier(Enum):
     ENTERPRISE = 'enterprise'
 
 class Tenant:
-    def __init__(self, id, name, tier, config=None, status='active', created_at=None, api_key=None, api_secret=None):
+    def __init__(self, id, name, tier, config=None, type='restaurant_entity', status='active', created_at=None, api_key=None, api_secret=None):
         self.id = id
         self.name = name
         self.tier = TenantTier(tier) if isinstance(tier, str) else tier
         self.config = config or {}
+        self.type = type or 'restaurant_entity'
         self.status = status
         self.created_at = created_at or datetime.now()
         self.api_key = api_key or f'mcp_{str(uuid.uuid4())[:8]}'
@@ -27,6 +28,7 @@ class Tenant:
             'name': self.name,
             'tier': self.tier.value,
             'config': self.config,
+            'type': self.type,
             'status': self.status,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'api_key': self.api_key,
@@ -36,6 +38,10 @@ class Tenant:
 class TenantManager:
     def __init__(self, data_file='/data/tenants.json'):
         self.data_file = data_file
+        self.tenants = []
+        self.load_tenants()
+
+    def reload_tenants(self):
         self.tenants = []
         self.load_tenants()
 
@@ -58,6 +64,7 @@ class TenantManager:
                     name=data['name'],
                     tier=data['tier'],
                     config=data.get('config', {}),
+                    type=data.get('type', 'restaurant_entity'),
                     status=data.get('status', 'active'),
                     created_at=datetime.fromisoformat(data['created_at']) if isinstance(data['created_at'], str) else data['created_at'],
                     api_key=api_key,
@@ -71,10 +78,10 @@ class TenantManager:
         with open(self.data_file, 'w', encoding='utf-8') as f:
             json.dump(tenants_data, f, ensure_ascii=False, indent=2)
 
-    def create_tenant(self, name, tier, config=None):
+    def create_tenant(self, name, tier, config=None, type='restaurant_entity'):
         """创建租户"""
         tenant_id = f"tenant_{len(self.tenants) + 1}"
-        tenant = Tenant(tenant_id, name, tier, config)
+        tenant = Tenant(tenant_id, name, tier, config, type=type)
         self.tenants.append(tenant)
         self._save_tenants()
         return tenant
@@ -109,6 +116,7 @@ class TenantManager:
             tenant.name = updates.get('name', tenant.name)
             tenant.tier = TenantTier(updates['tier']) if isinstance(updates['tier'], str) else updates['tier']
             tenant.config = updates.get('config', tenant.config)
+            tenant.type = updates.get('type', tenant.type) or tenant.type
             tenant.status = updates.get('status', tenant.status)
         else:
             # 部分更新（兼容旧逻辑）
@@ -118,6 +126,8 @@ class TenantManager:
                 tenant.tier = TenantTier(updates['tier'])
             if 'config' in updates:
                 tenant.config = updates['config']
+            if 'type' in updates:
+                tenant.type = updates['type'] or tenant.type
             if 'status' in updates:
                 tenant.status = updates['status']
         

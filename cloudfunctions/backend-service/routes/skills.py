@@ -28,6 +28,7 @@ def save_skills(skills):
         json.dump(skills, f, ensure_ascii=False, indent=2)
 
 @bp.route('/', methods=['GET'])
+@bp.route('', methods=['GET'])
 def list_skills():
     """获取技能列表（支持分页和筛选）"""
     skills = load_skills()

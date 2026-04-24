@@ -34,7 +34,7 @@
         class="tenant-alert"
       >
         <template #default>
-          <el-button type="primary" size="small" @click="router.push('/tenants')">
+          <el-button type="primary" size="small" @click="handleGoTenants">
             前往租户管理
           </el-button>
         </template>
@@ -615,16 +615,19 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { useTenantsStore } from '../../stores/tenants'
 import { useMcpServicesStore } from '../../stores/mcpServices'
 import { Plus, DocumentCopy, Download, Setting, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { BACKEND_URL } from '@/config'
 
-const router = useRouter()
 const tenantsStore = useTenantsStore()
 const mcpServicesStore = useMcpServicesStore()
+
+const getPagesBase = () => (window.location.pathname.includes('/pages/') ? '/pages/' : '/')
+const handleGoTenants = () => {
+  window.location.href = `${getPagesBase()}merchants.html`
+}
 
 const currentTenant = computed(() => tenantsStore.currentTenant)
 
@@ -1248,7 +1251,8 @@ const testTool = async (toolName) => {
     if (response.ok) {
       addLogMessage('info', `工具 ${toolName} 测试成功`)
     } else {
-      addLogMessage('error', `工具 ${toolName} 测试失败: ${data.error?.message || '未知错误'}`)
+      const errMsg = typeof data.error === 'string' ? data.error : (data.error?.message || '未知错误')
+      addLogMessage('error', `工具 ${toolName} 测试失败: ${errMsg}`)
     }
   } catch (error) {
     addLogMessage('error', `工具 ${toolName} 测试失败: ${error.message || '网络错误'}`)

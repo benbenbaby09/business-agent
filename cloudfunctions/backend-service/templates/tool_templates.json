@@ -3,38 +3,32 @@
     {
       "name": "get_restaurant_info",
       "title": "餐厅基本信息",
-      "type": "restaurant_entity",
-      "description": "获取餐厅的基本信息，包括名称、地址、营业时间等"
+      "type": "rest_info"
     },
     {
       "name": "get_queue_info",
       "title": "堂食排队取号",
-      "type": "queue_info",
-      "description": "获取餐厅的排队取号信息"
+      "type": "queue"
     },
     {
       "name": "get_delivery_info",
       "title": "外卖配送信息",
-      "type": "delivery_info",
-      "description": "获取餐厅的外卖配送信息"
+      "type": "delivery"
     },
     {
       "name": "get_raw_dumpling_info",
       "title": "生饺子打包与教程",
-      "type": "raw_dumpling_info",
-      "description": "获取生饺子打包信息和煮饺子教程"
+      "type": "raw_dumpling"
     },
     {
       "name": "get_wifi_info",
       "title": "店内Wi-Fi",
-      "type": "wifi_info",
-      "description": "获取店内Wi-Fi信息"
+      "type": "wifi"
     },
     {
       "name": "get_latest_news",
       "title": "最新消息",
-      "type": "latest_news",
-      "description": "获取餐厅的最新消息"
+      "type": "news"
     }
   ]
 }

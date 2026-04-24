@@ -470,14 +470,17 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useTenantsStore } from '../../stores/tenants'
 import { Plus, DocumentCopy, Link } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { BACKEND_URL } from '@/config'
 
-const router = useRouter()
 const tenantsStore = useTenantsStore()
+
+const getPagesBase = () => (window.location.pathname.includes('/pages/') ? '/pages/' : '/')
+const navigateToPage = (pageFile) => {
+  window.location.href = `${getPagesBase()}${pageFile}`
+}
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -743,14 +746,59 @@ const handleDeleteTenant = (id) => {
 
 
 
-const handleViewTenant = (tenant) => {
-  tenantsStore.setCurrentTenant(tenant)
-  router.push(`/tenants/${tenant.id}`)
+const getPublishedZipUrl = (tenant) => {
+  const skillUrl = tenant?.serviceConfig?.skillUrl
+  if (!skillUrl) return ''
+  return skillUrl.startsWith('/') ? BACKEND_URL + skillUrl : skillUrl
+}
+
+const handleViewTenant = async (tenant) => {
+  const zipUrl = getPublishedZipUrl(tenant)
+  const copyText = zipUrl ? `请帮我安装：${zipUrl}` : '请帮我安装：{发布后的zip地址}'
+
+  if (!zipUrl) {
+    await ElMessageBox.alert(
+      `<div style="line-height: 1.8;">
+        <div>使用指引</div>
+        <div style="margin-top: 8px;">1、先点击该商家的“发布”，生成 skill.zip 地址。</div>
+        <div>2、再回到这里复制安装指令。</div>
+        <div style="margin-top: 8px;">通用流程：</div>
+        <div>复制文本：<strong>${copyText}</strong></div>
+        <div>打开微信小程序 workbuddy，登录后粘贴刚才复制的文本，即可开展对话。</div>
+      </div>`,
+      '商家查看（使用指引）',
+      { dangerouslyUseHTMLString: true, confirmButtonText: '知道了' }
+    )
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `<div style="line-height: 1.8;">
+        <div>使用指引</div>
+        <div style="margin-top: 8px;">1、复制下面这段文本：</div>
+        <div style="margin: 6px 0; padding: 8px 10px; background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 4px;">
+          ${copyText}
+        </div>
+        <div>2、搜索微信小程序 workbuddy，登录后粘贴刚才复制的文本，即可开展对话。</div>
+      </div>`,
+      '商家查看（使用指引）',
+      {
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: '复制安装指令',
+        cancelButtonText: '关闭',
+        closeOnClickModal: false
+      }
+    )
+    copyToClipboard(copyText)
+  } catch {
+    return
+  }
 }
 
 const handleMcpConfig = (tenant) => {
   tenantsStore.setCurrentTenant(tenant)
-  router.push('/mcp')
+  navigateToPage('mcp.html')
 }
 
 const handleConfigTenant = (tenant) => {
